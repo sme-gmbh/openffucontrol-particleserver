@@ -58,7 +58,7 @@ ParticleCounterModbusSystem::ParticleCounterModbusSystem(QObject *parent, Loghan
             quint32 txDelay = settings.value("txDelay", 200).toUInt();
             newModbus->setDelayTxTimer(txDelay);
 
-            if (!newModbus->open(QSerialPort::Baud19200))
+            if (!newModbus->open(QSerialPort::Baud19200, QSerialPort::Data8, QSerialPort::EvenParity, QSerialPort::OneStop))
                 fprintf(stderr, "OcuModbusSystem::OcuModbusSystem(): Unable to open serial line %s!\n", interface_0.toUtf8().data());
             else
                 fprintf(stderr, "OcuModbusSystem::OcuModbusSystem(): Activated on %s!\n", interface_0.toUtf8().data());
