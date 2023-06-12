@@ -5,6 +5,7 @@ measurement systems are supported.
 
 ## Building and installing
 First make sure to have Qt5 and openffucontrol-qtmodbus installed on your system.
+Of course you need an instance of influxDB somewhere in your network running.
 Create a directory for the build
 ```
 mkdir bin
@@ -29,12 +30,12 @@ sudo make install
 
 After the first installation copy the config example
 ```
-sudo cp /etc/openffucontrol/particleserver/particleserver.ini.example /etc/openffucontrol/particleserver/particleserver.ini
+sudo cp /etc/openffucontrol/particleserver/config.ini.example /etc/openffucontrol/particleserver/config.ini
 ```
 
 Edit the configuration according to your needs
 ```
-sudo vi /etc/openffucontrol/particleserver/particleserver.ini
+sudo vi /etc/openffucontrol/particleserver/config.ini
 ```
 
 The daemon can be managed with systemctl
@@ -50,3 +51,5 @@ Automatic start at boot time is controlled with
 sudo systemctl enable openffucontrol-particleserver
 sudo systemctl disable openffucontrol-particleserver
 ```
+Make sure the influx database is running before you start the
+particleserver.
