@@ -1,0 +1,14 @@
+[Unit]
+Description=openFFUcontrol data gathering daemon service for air particle counters
+After=network.target ssh.service influxd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/openffucontrol-particleserver
+StandardOutput=null
+StandardError=journal
+RestartSec=1
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

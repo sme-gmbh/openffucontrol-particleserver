@@ -1,0 +1,34 @@
+# Configuration file for openffucontrol-particleserver
+
+[influxDB]
+
+# Hostname of the system that is running the influx database, defaults to localhost
+#hostname=mydomain.tld
+
+# TCP Port of the influx db, defaults to 8086
+#port=8086
+
+# Username of the influx user with write privileges
+username=openffucontrol
+
+# Password of the influx user with write privileges
+password=SECRET
+
+# Name of the measurement time series
+measurementName=particles
+
+[interfacesParticleCounterModBus]
+
+# Delay between end of transmission and next telegram in milliseconds (line clearance backoff time)
+txDelay=200
+
+# Each line corresponds to a busline. Buslines must be named in a continuous range starting from 0.
+# Format:
+# pcmodbus<n>=<mainSerialInterface>[,<redundantSerialInterface>]
+#
+# Example for non redundant bus line:
+# pcmodbus0=ttyUSB0
+#
+# Example for redundant bus line with ttyUSB0 as primary interface and ttyUSB4 as secondary interface
+# pcmodbus0=ttyUSB0,ttyUSB4
+pcmodbus0=ttyUSB0
