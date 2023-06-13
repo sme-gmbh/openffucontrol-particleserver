@@ -22,6 +22,9 @@ RemoteController::RemoteController(QObject *parent, ParticleCounterDatabase* pcD
     fprintf(stdout, "Server started\n");
 #endif
 
+    QSettings settings("/etc/openffucontrol/particleserver/config.ini", QSettings::IniFormat);
+    settings.beginGroup("tcpTerminal");
+
     m_pcDB = pcDB;
     m_loghandler = loghandler;
     m_noConnection = true;
@@ -32,7 +35,14 @@ RemoteController::RemoteController(QObject *parent, ParticleCounterDatabase* pcD
     m_timer_connectionTimeout.start(30000); // 30 Sec.
 
     connect(&m_server, &QTcpServer::newConnection,  this, &RemoteController::slot_new_connection);
-    m_server.listen(QHostAddress::LocalHost, 16001);    // Restrict to localhost (ssh tunnel endpoint)
+
+    QHostAddress hostAddress;
+    if (settings.value("restrictToLocalhost").toBool())
+        hostAddress = QHostAddress::LocalHost;     // Restrict to localhost (ssh tunnel endpoint)
+    else
+        hostAddress = QHostAddress::Any;
+
+    m_server.listen(hostAddress, settings.value("port", 16002).toUInt());
 }
 
 RemoteController::~RemoteController()

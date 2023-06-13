@@ -378,7 +378,7 @@ void RemoteClientHandler::slot_ParticleCounterActualDataHasChanged(int id)
         foreach(QString key, responseData.keys())
         {
             QString response = responseData.value(key);
-            if (!response.startsWith("Error[OCUfan]:"))
+            if (!response.startsWith("Error[Particle Counter]:"))
                 socket->write(" " + key.toUtf8() + "=" + response.toUtf8());
         }
         socket->write("\r\n");

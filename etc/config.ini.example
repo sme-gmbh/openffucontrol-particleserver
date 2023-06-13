@@ -1,5 +1,14 @@
 # Configuration file for openffucontrol-particleserver
 
+[tcpTerminal]
+
+# Port of openffucontrol commandline interface, defaults to 16002
+port=16002
+
+# Only connection from localhost is allowed if restrictToLocalhost is set to 1.
+# In this case ssh reverse tunnels can be used for access and all other access is blocked.
+restrictToLocalhost=1
+
 [influxDB]
 
 # Hostname of the system that is running the influx database, defaults to localhost
@@ -7,6 +16,9 @@
 
 # TCP Port of the influx db, defaults to 8086
 #port=8086
+
+# Name of the database to use
+dbName=openffucontrol
 
 # Username of the influx user with write privileges
 username=openffucontrol

@@ -34,10 +34,14 @@ ParticleCounterDatabase::ParticleCounterDatabase(QObject *parent, ParticleCounte
     connect(m_pcModbusSystem, &ParticleCounterModbusSystem::signal_receivedInputRegisterData, this, &ParticleCounterDatabase::slot_receivedInputRegisterData);
     connect(m_pcModbusSystem, &ParticleCounterModbusSystem::signal_transactionLost, this, &ParticleCounterDatabase::slot_transactionLost);
 
-    // Timer for cyclic poll task to get the status of OCUfans
+    // Timer for cyclic poll task to get the status of Particle Counters
     connect(&m_timer_pollStatus, &QTimer::timeout, this, &ParticleCounterDatabase::slot_timer_pollStatus_fired);
     m_timer_pollStatus.setInterval(2000);
     m_timer_pollStatus.start();
+
+    // Timer for cyclic check of the particle counter's realtime clock settings
+    connect(&m_timer_checkRealTimeClocks, &QTimer::timeout, this, &ParticleCounterDatabase::slot_timer_checkRealTimeClocks_fired);
+    m_timer_checkRealTimeClocks.setInterval(3600000 * 12);  // Every 12 hours RTC of particle counters are set to Server UTC Clock.
 }
 
 void ParticleCounterDatabase::loadFromHdd()
@@ -61,7 +65,10 @@ void ParticleCounterDatabase::loadFromHdd()
         newPc->setFiledirectory(directory);
         connect(newPc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::signal_ParticleCounterActualDataHasChanged);
         connect(newPc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::slot_ParticleCounterActualDataHasChanged);
+        connect(newPc, &ParticleCounter::signal_ParticleCounterArchiveDataReceived, this, &ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived);
         m_particlecounters.append(newPc);
+
+        newPc->init();
     }
 }
 
@@ -93,7 +100,10 @@ QString ParticleCounterDatabase::addParticleCounter(int id, int busID, int modbu
     newPc->save();
     connect(newPc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::signal_ParticleCounterActualDataHasChanged);
     connect(newPc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::slot_ParticleCounterActualDataHasChanged);
+    connect(newPc, &ParticleCounter::signal_ParticleCounterArchiveDataReceived, this, &ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived);
     m_particlecounters.append(newPc);
+
+    newPc->init();
 
     return "OK[ParticleCounterDatabase]: Added ID " + QString().setNum(id);
 }
@@ -109,6 +119,7 @@ QString ParticleCounterDatabase::deleteParticleCounter(int id)
     {
         disconnect(pc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::signal_ParticleCounterActualDataHasChanged);
         disconnect(pc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::slot_ParticleCounterActualDataHasChanged);
+        disconnect(pc, &ParticleCounter::signal_ParticleCounterArchiveDataReceived, this, &ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived);
         pc->deleteFromHdd();
         pc->deleteAllErrors();
         delete pc;
@@ -230,7 +241,7 @@ void ParticleCounterDatabase::slot_transactionLost(quint64 telegramID)
     if (pc == nullptr)
     {
         // Somebody other than the pc requested that response, so do nothing with the response at this point
-        m_loghandler->slot_newEntry(LogEntry::Error, "OCUdatabase slot_transactionLost", "Telegram id mismatch.");
+        m_loghandler->slot_newEntry(LogEntry::Error, "ParticleCounterDatabase slot_transactionLost", "Telegram id mismatch.");
         return;
     }
     pc->slot_transactionLost(telegramID);
@@ -242,7 +253,7 @@ void ParticleCounterDatabase::slot_receivedHoldingRegisterData(quint64 telegramI
     if (pc == nullptr)
     {
         // Somebody other than the pc requested that response, so do nothing with the response at this point
-        m_loghandler->slot_newEntry(LogEntry::Error, "OCUdatabase slot_receivedHoldingRegisterData", "Telegram id mismatch.");
+        m_loghandler->slot_newEntry(LogEntry::Error, "ParticleCounterDatabase slot_receivedHoldingRegisterData", "Telegram id mismatch.");
         return;
     }
     pc->slot_receivedHoldingRegisterData(telegramID, adr, reg, data);
@@ -254,7 +265,7 @@ void ParticleCounterDatabase::slot_receivedInputRegisterData(quint64 telegramID,
     if (pc == nullptr)
     {
         // Somebody other than the pc requested that response, so do nothing with the response at this point
-        m_loghandler->slot_newEntry(LogEntry::Error, "OCUdatabase slot_receivedInputRegisterData", "Telegram id mismatch.");
+        m_loghandler->slot_newEntry(LogEntry::Error, "ParticleCounterDatabase slot_receivedInputRegisterData", "Telegram id mismatch.");
         return;
     }
     pc->slot_receivedInputRegisterData(telegramID, adr, reg, data);
@@ -283,6 +294,34 @@ void ParticleCounterDatabase::slot_ParticleCounterActualDataHasChanged(int id)
     m_influxDB->write(payload);
 }
 
+void ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived(int id, ParticleCounter::ArchiveDataset archiveData)
+{
+    // Example of payload:
+    // 'particles,tag_id=2,tag_channel=1,tag_room=iso5-Raum id=2i,channel=1i,counts=15i 1678388136783721259'
+
+    QString measurementName = m_settings->value("measurementName", QString()).toString();
+
+    // Separate data points in influx for each channel of the particle counter
+    for (int ch=0; ch<8; ch++)
+    {
+        if (archiveData.channelData[ch].status == ParticleCounter::OFF)
+            continue;
+
+        QByteArray payload;
+        payload.append(measurementName.toUtf8() + ",");
+        payload.append("tag_id=" + QByteArray().setNum(id) + ",");
+        payload.append("tag_channel=" + QByteArray().setNum(archiveData.channelData[ch].channel) + ",");
+        // tbd!!
+        //    payload.append("tag_room=" + responseData.value("room").toUtf8());
+        payload.append(" ");
+        payload.append("id=" + QByteArray().setNum(id) + "i,");
+        payload.append("channel=" + QByteArray().setNum(archiveData.channelData[ch].channel) + "i,");
+        payload.append("counts=" + QByteArray().setNum(archiveData.channelData[ch].count) + "i ");
+        payload.append(archiveData.timestamp.toMSecsSinceEpoch() * 1000000);    // Write timestamp to influx in nanoseconds since epoch
+        m_influxDB->write(payload);
+    }
+}
+
 void ParticleCounterDatabase::slot_timer_pollStatus_fired()
 {
     foreach (ModBus* modBus, *m_pcModbusList)
@@ -295,7 +334,24 @@ void ParticleCounterDatabase::slot_timer_pollStatus_fired()
                 if (m_pcModbusList->indexOf(modBus) == pc->getBusID())
                 {
                     pc->requestStatus();
+                    pc->requestArchiveDataset();
+                    pc->requestNextArchive();
                 }
+            }
+        }
+    }
+}
+
+void ParticleCounterDatabase::slot_timer_checkRealTimeClocks_fired()
+{
+    foreach (ModBus* modBus, *m_pcModbusList)
+    {
+        foreach(ParticleCounter* pc, m_particlecounters)
+        {
+            if (m_pcModbusList->indexOf(modBus) == pc->getBusID())
+            {
+                pc->setClock();
+                // Later maybe just read clock and compare it in order to write it only if necessary
             }
         }
     }

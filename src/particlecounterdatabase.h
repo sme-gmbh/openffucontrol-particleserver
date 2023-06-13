@@ -68,6 +68,7 @@ private:
     Loghandler* m_loghandler;
     QList<ParticleCounter*> m_particlecounters;
     QTimer m_timer_pollStatus;
+    QTimer m_timer_checkRealTimeClocks;
 
     ParticleCounter* getParticleCounterByTelegramID(quint64 telegramID);
 
@@ -84,8 +85,10 @@ private slots:
     void slot_receivedInputRegisterData(quint64 telegramID, quint16 adr, quint16 reg, QList<quint16> data);
 
     void slot_ParticleCounterActualDataHasChanged(int id);
+    void slot_ParticleCounterArchiveDataReceived(int id, ParticleCounter::ArchiveDataset archiveData);
     // Timer slots
     void slot_timer_pollStatus_fired();
+    void slot_timer_checkRealTimeClocks_fired();
 };
 
 #endif // PARTICLECOUNTERDATABASE_H

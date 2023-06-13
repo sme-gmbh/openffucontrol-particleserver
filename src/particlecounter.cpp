@@ -52,7 +52,7 @@ ParticleCounter::ParticleCounter(QObject *parent, ParticleCounterModbusSystem *p
     m_configData.outputDataFormat = DISTRIBUTIVE;
     m_configData.addupCount = 1;
     m_configData.firstRinsingTimeInSeconds = 30;
-    m_configData.subsequentRinsingTimeInSeconds = 10;
+    m_configData.subsequentRinsingTimeInSeconds = 0;
     m_configData.samplingTimeInSeconds = 60;
     m_configData.valid = true;
 
@@ -124,6 +124,16 @@ void ParticleCounter::setModbusAddress(int modbusAddress)
         m_dataChanged = true;
         emit signal_needsSaving();
     }
+}
+
+void ParticleCounter::init()
+{
+    this->setClock();
+    this->setConfigData(m_configData);
+    this->requestDeviceInfo();
+    this->setSamplingEnabled(true);
+    this->storeSettingsToFlash();
+    this->requestStatus();
 }
 
 QString ParticleCounter::getData(QString key)
@@ -206,6 +216,27 @@ void ParticleCounter::setSamplingEnabled(bool on)
 bool ParticleCounter::isSampling() const
 {
     return m_samplingEnabled;
+}
+
+void ParticleCounter::storeSettingsToFlash()
+{
+    if (!isConfigured())
+    {
+        m_loghandler->slot_newEntry(LogEntry::Error, "Particle Counter id=" + QString().setNum(m_id), " not configured.");
+        return;
+    }
+
+    ModBus* bus = m_pcModbusSystem->getBusByID(m_busID);
+    if (bus == nullptr)
+    {
+        m_loghandler->slot_newEntry(LogEntry::Error, "Particle Counter id=" + QString().setNum(m_id), " Bus id " + QString().setNum(m_busID) + " not found.");
+        return;
+    }
+
+    if (!m_configData.valid)
+        requestConfig();
+
+    m_transactionIDs.append(bus->writeSingleRegister(m_modbusAddress, ParticleCounter::HOLDING_REG_0100_Command, ParticleCounter::COMMAND_0009_SaveAcquisitionRegistersToNonvolatileMemory));
 }
 
 QStringList ParticleCounter::getActualKeys()
@@ -802,7 +833,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             months = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0262_LivecountsTimestampYears:
-            years = rawdata;
+            years = rawdata + 2000;
             samplingDate.setDate(years, months, days);
             samplingTimestamp.setDate(samplingDate);
             samplingTimestamp.setTime(samplingTime);
@@ -906,7 +937,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             months = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0518_ArchiveDataSetTimestampYears:
-            years = rawdata;
+            years = rawdata + 2000;
             samplingDate.setDate(years, months, days);
             samplingTimestamp.setDate(samplingDate);
             samplingTimestamp.setTime(samplingTime);
@@ -998,7 +1029,8 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             break;
         case ParticleCounter::INPUT_REG_0543_0544_ArchiveDataSetChannel8LH + 1:
             archiveDataset.channelData[7].count += rawdata << 16;
-            emit signal_ParticleCounterArchiveDataReceived(m_id, archiveDataset);
+            if (archiveDataset.channelData[0].count != 0xffffffff)
+                emit signal_ParticleCounterArchiveDataReceived(m_id, archiveDataset);
             break;
         default:
             break;

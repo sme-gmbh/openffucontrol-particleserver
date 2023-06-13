@@ -154,7 +154,7 @@ public:
     typedef struct {
         ChannelStatus status;
         quint16 channel;
-        quint16 count;
+        quint32 count;
     } ChannelData;
 
     typedef enum {
@@ -226,6 +226,8 @@ public:
     int getModbusAddress() const;
     void setModbusAddress(int modbusAddress);
 
+    // Do all the initialization to get operational
+    void init();
 
     // Get or set any data by name
     QString getData(QString key);
@@ -234,6 +236,9 @@ public:
     // Start or Stop Sampling
     void setSamplingEnabled(bool on);
     bool isSampling() const;
+
+    // Write acquisition parameters to permanent storage in order to load them at next startup
+    void storeSettingsToFlash();
 
     // Get a list of data keys that this FFU can provide
     QStringList getActualKeys();

@@ -9,6 +9,7 @@ InfluxDB::InfluxDB(QObject *parent, Loghandler* loghandler) : QObject(parent)
 
     m_hostname = settings.value("hostname", QString("localhost")).toString();
     m_port = settings.value("port", 8086).toUInt();
+    m_dbName = settings.value("dbName").toString();
     m_dbUser = settings.value("username", QString()).toString();
     m_dbPassword = settings.value("password", QString()).toString();
 
