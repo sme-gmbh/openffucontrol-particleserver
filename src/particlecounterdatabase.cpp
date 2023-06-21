@@ -91,7 +91,7 @@ QList<ModBus *> *ParticleCounterDatabase::getBusList()
 QString ParticleCounterDatabase::addParticleCounter(int id, int busID, int modbusAddress)
 {
     ParticleCounter* newPc = new ParticleCounter(this, m_pcModbusSystem, m_loghandler);
-    newPc->setFiledirectory("/var/openffucontrol/ocufans/");
+    newPc->setFiledirectory("/var/openffucontrol/particlecounters/");
     newPc->setAutoSave(false);
     newPc->setId(id);
     newPc->setBusID(busID);
