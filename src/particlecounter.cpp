@@ -52,8 +52,8 @@ ParticleCounter::ParticleCounter(QObject *parent, ParticleCounterModbusSystem *p
     m_configData.outputDataFormat = DISTRIBUTIVE;
     m_configData.addupCount = 1;
     m_configData.firstRinsingTimeInSeconds = 30;
-    m_configData.subsequentRinsingTimeInSeconds = 0;
-    m_configData.samplingTimeInSeconds = 60;
+    m_configData.subsequentRinsingTimeInSeconds = 1; // Must be >= 1 for internal loop check!
+    m_configData.samplingTimeInSeconds = 59;
     m_configData.valid = true;
 
     m_deviceInfo.deviceInfoString = QString();
@@ -167,6 +167,18 @@ QString ParticleCounter::getData(QString key)
     else if (key == "clockSettingLostCount")
     {
         return QString().sprintf("%i", m_actualData.clockSettingLostCount);
+    }
+    else if (key == "deviceInfo")
+    {
+        return ("\"" + m_deviceInfo.deviceInfoString + "\"");
+    }
+    else if (key == "deviceID")
+    {
+        return ("\"" + m_deviceInfo.deviceIdString + "\"");
+    }
+    else if (key == "modbusRegistersetVersion")
+    {
+        return ("\"" + m_deviceInfo.modbusRegistersetVersion + "\"");
     }
 
     return "Error[Particle Counter]: Key " + key + " not available";
