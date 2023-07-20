@@ -242,14 +242,6 @@ void ParticleCounter::setSamplingEnabled(bool on)
     if (!m_configData.valid)
         requestConfig();
 
-    if (on)
-    {
-        m_transactionIDs.append(bus->writeSingleRegister(m_modbusAddress, ParticleCounter::HOLDING_REG_0100_Command, ParticleCounter::COMMAND_0017_StartAcquisition));
-    }
-    else
-    {
-        m_transactionIDs.append(bus->writeSingleRegister(m_modbusAddress, ParticleCounter::HOLDING_REG_0100_Command, ParticleCounter::COMMAND_0016_StopAcquisition));
-    }
     m_samplingEnabled = on;
 }
 
@@ -343,6 +335,16 @@ void ParticleCounter::requestStatus()
 
     if (!m_configData.valid)
         requestConfig();
+
+    // Always set sampling enabled or disabled in every status request as stupid counters forget that sometimes and stop working
+    if (m_samplingEnabled)
+    {
+        m_transactionIDs.append(bus->writeSingleRegister(m_modbusAddress, ParticleCounter::HOLDING_REG_0100_Command, ParticleCounter::COMMAND_0017_StartAcquisition));
+    }
+    else
+    {
+        m_transactionIDs.append(bus->writeSingleRegister(m_modbusAddress, ParticleCounter::HOLDING_REG_0100_Command, ParticleCounter::COMMAND_0016_StopAcquisition));
+    }
 
     m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0089_StatusRegister, 1));
     m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0096_ErrorstateRegister, 1));
