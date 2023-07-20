@@ -27,6 +27,7 @@
 #include <QTimer>
 #include <QMap>
 #include <QSettings>
+#include <QRegExp>
 #include "particlecountermodbussystem.h"
 #include "loghandler.h"
 #include "particlecounter.h"
@@ -84,8 +85,8 @@ private slots:
     void slot_receivedHoldingRegisterData(quint64 telegramID, quint16 adr, quint16 reg, QList<quint16> data);
     void slot_receivedInputRegisterData(quint64 telegramID, quint16 adr, quint16 reg, QList<quint16> data);
 
-    void slot_ParticleCounterActualDataReceived(int id, ParticleCounter::ActualData actualData);
-    void slot_ParticleCounterArchiveDataReceived(int id, ParticleCounter::ArchiveDataset archiveData);
+    void slot_ParticleCounterActualDataReceived(int id, ParticleCounter::ActualData actualData, ParticleCounter::DeviceInfo deviceInfo);
+    void slot_ParticleCounterArchiveDataReceived(int id, ParticleCounter::ArchiveDataset archiveData, ParticleCounter::DeviceInfo deviceInfo);
     // Timer slots
     void slot_timer_pollStatus_fired();
     void slot_timer_checkRealTimeClocks_fired();

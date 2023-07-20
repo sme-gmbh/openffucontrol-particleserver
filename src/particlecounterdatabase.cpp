@@ -271,12 +271,14 @@ void ParticleCounterDatabase::slot_receivedInputRegisterData(quint64 telegramID,
     pc->slot_receivedInputRegisterData(telegramID, adr, reg, data);
 }
 
-void ParticleCounterDatabase::slot_ParticleCounterActualDataReceived(int id, ParticleCounter::ActualData actualData)
+void ParticleCounterDatabase::slot_ParticleCounterActualDataReceived(int id, ParticleCounter::ActualData actualData, ParticleCounter::DeviceInfo deviceInfo)
 {
     // Example of payload:
     // 'particles,tag_id=2,tag_channel=1,tag_room=iso5-Raum id=2i,channel=1i,counts=15i 1678388136783721259'
 
     QString measurementName = m_settings->value("measurementName", QString()).toString();
+
+    deviceInfo.deviceIdString.remove(QRegExp("\\D"));    // Remove all non-digits
 
     // Separate data points in influx for each channel of the particle counter
     for (int ch=0; ch<8; ch++)
@@ -286,11 +288,13 @@ void ParticleCounterDatabase::slot_ParticleCounterActualDataReceived(int id, Par
         QByteArray payload;
         payload.append(measurementName.toUtf8() + ",");
         payload.append("tag_id=" + QByteArray().setNum(id) + ",");
+        payload.append("tag_serialnumber='" + deviceInfo.deviceIdString.toUtf8() + "',");
         payload.append("tag_channel=" + QByteArray().setNum(actualData.channelData[ch].channel));
         // tbd!!
         //    payload.append(",tag_room=" + responseData.value("room").toUtf8());
         payload.append(" ");
         payload.append("id=" + QByteArray().setNum(id) + "i,");
+        payload.append("serialnumber='" + deviceInfo.deviceIdString.toUtf8() + "',");
         payload.append("channel=" + QByteArray().setNum(actualData.channelData[ch].channel) + "i,");
         payload.append("counts=" + QByteArray().setNum(actualData.channelData[ch].count) + "i ");
         qulonglong timestamp = actualData.timestamp.toMSecsSinceEpoch() * 1000000ull;    // Write timestamp to influx in nanoseconds since epoch
@@ -299,12 +303,14 @@ void ParticleCounterDatabase::slot_ParticleCounterActualDataReceived(int id, Par
     }
 }
 
-void ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived(int id, ParticleCounter::ArchiveDataset archiveData)
-{    
+void ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived(int id, ParticleCounter::ArchiveDataset archiveData, ParticleCounter::DeviceInfo deviceInfo)
+{
     // Example of payload:
     // 'particles,tag_id=2,tag_channel=1,tag_room=iso5-Raum id=2i,channel=1i,counts=15i 1678388136783721259'
 
     QString measurementName = m_settings->value("measurementName", QString()).toString();
+
+    deviceInfo.deviceIdString.remove(QRegExp("\\D"));    // Remove all non-digits
 
     // Separate data points in influx for each channel of the particle counter
     for (int ch=0; ch<8; ch++)
@@ -314,11 +320,13 @@ void ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived(int id, Pa
         QByteArray payload;
         payload.append(measurementName.toUtf8() + ",");
         payload.append("tag_id=" + QByteArray().setNum(id) + ",");
+        payload.append("tag_serialnumber='" + deviceInfo.deviceIdString.toUtf8() + "',");
         payload.append("tag_channel=" + QByteArray().setNum(archiveData.channelData[ch].channel));
         // tbd!!
         //    payload.append(",tag_room=" + responseData.value("room").toUtf8());
         payload.append(" ");
         payload.append("id=" + QByteArray().setNum(id) + "i,");
+        payload.append("serialnumber='" + deviceInfo.deviceIdString.toUtf8() + "',");
         payload.append("channel=" + QByteArray().setNum(archiveData.channelData[ch].channel) + "i,");
         payload.append("counts=" + QByteArray().setNum(archiveData.channelData[ch].count) + "i ");
         qulonglong timestamp = archiveData.timestamp.toMSecsSinceEpoch() * 1000000ull;    // Write timestamp to influx in nanoseconds since epoch

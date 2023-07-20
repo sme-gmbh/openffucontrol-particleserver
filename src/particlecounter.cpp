@@ -962,7 +962,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
         case ParticleCounter::INPUT_REG_0285_0286_LivecountsChannel8LH + 1:
             m_actualData.channelData[7].count += rawdata << 16;
             // INPUT_REG_0285_0286_LivecountsChannel8LH + 1 is the last data we get from automatic query, so signal new data now
-            emit signal_ParticleCounterActualDataReceived(m_id, m_actualData);
+            emit signal_ParticleCounterActualDataReceived(m_id, m_actualData, m_deviceInfo);
             break;
         case ParticleCounter::INPUT_REG_0513_ArchiveDataSetTimestampSeconds:
             seconds = rawdata;
@@ -1074,7 +1074,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
         case ParticleCounter::INPUT_REG_0543_0544_ArchiveDataSetChannel8LH + 1:
             archiveDataset.channelData[7].count += rawdata << 16;
             if (archiveDataset.channelData[0].count != 0xffffffff)
-                emit signal_ParticleCounterArchiveDataReceived(m_id, archiveDataset);
+                emit signal_ParticleCounterArchiveDataReceived(m_id, archiveDataset, m_deviceInfo);
             break;
         default:
             break;

@@ -319,8 +319,8 @@ private:
 
 signals:
     void signal_needsSaving();
-    void signal_ParticleCounterActualDataReceived(int id, ActualData actualData);
-    void signal_ParticleCounterArchiveDataReceived(int id, ArchiveDataset archiveData);
+    void signal_ParticleCounterActualDataReceived(int id, ActualData actualData, DeviceInfo deviceInfo);
+    void signal_ParticleCounterArchiveDataReceived(int id, ArchiveDataset archiveData, DeviceInfo deviceInfo);
 
 public slots:
     // High level bus response slots
