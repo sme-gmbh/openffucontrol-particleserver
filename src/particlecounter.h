@@ -319,7 +319,7 @@ private:
 
 signals:
     void signal_needsSaving();
-    void signal_ParticleCounterActualDataHasChanged(int id);
+    void signal_ParticleCounterActualDataReceived(int id, ActualData actualData);
     void signal_ParticleCounterArchiveDataReceived(int id, ArchiveDataset archiveData);
 
 public slots:

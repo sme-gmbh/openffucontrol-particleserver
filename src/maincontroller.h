@@ -21,7 +21,6 @@
 #include <QTimer>
 #include <QList>
 #include <QSettings>
-#include <libebmbus/ebmbus.h>
 #include <libopenffucontrol-qtmodbus/modbus.h>
 #include "particlecountermodbussystem.h"
 #include "particlecounterdatabase.h"

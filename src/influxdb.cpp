@@ -39,6 +39,7 @@ void InfluxDB::write(QByteArray payload)
     }
     url.setQuery("db=" + m_dbName);
     m_request.setUrl(url);
+    m_request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
 
     m_networkManager->post(m_request, payload);
 }
@@ -46,12 +47,10 @@ void InfluxDB::write(QByteArray payload)
 void InfluxDB::slot_replyFinished(QNetworkReply *reply)
 {
     if (reply->error()) {
-        m_loghandler->slot_newEntry(LogEntry::Error, "InfluxDB slot_replyFinished", reply->errorString());
+        QString answer = reply->readAll();
+        m_loghandler->slot_newEntry(LogEntry::Error, "InfluxDB slot_replyFinished", reply->errorString() + " " + answer);
         return;
     }
-
-    // Maybe do something with the reply later?
-    QString answer = reply->readAll();
 
     reply->deleteLater();
 }

@@ -63,8 +63,8 @@ void ParticleCounterDatabase::loadFromHdd()
         ParticleCounter* newPc = new ParticleCounter(this, m_pcModbusSystem, m_loghandler);
         newPc->load(filepath);
         newPc->setFiledirectory(directory);
-        connect(newPc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::signal_ParticleCounterActualDataHasChanged);
-        connect(newPc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::slot_ParticleCounterActualDataHasChanged);
+        //connect(newPc, &ParticleCounter::signal_ParticleCounterActualDataReceived, this, &ParticleCounterDatabase::signal_ParticleCounterActualDataHasChanged);
+        connect(newPc, &ParticleCounter::signal_ParticleCounterActualDataReceived, this, &ParticleCounterDatabase::slot_ParticleCounterActualDataReceived);
         connect(newPc, &ParticleCounter::signal_ParticleCounterArchiveDataReceived, this, &ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived);
         m_particlecounters.append(newPc);
 
@@ -98,8 +98,8 @@ QString ParticleCounterDatabase::addParticleCounter(int id, int busID, int modbu
     newPc->setModbusAddress(modbusAddress);
     newPc->setAutoSave(true);
     newPc->save();
-    connect(newPc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::signal_ParticleCounterActualDataHasChanged);
-    connect(newPc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::slot_ParticleCounterActualDataHasChanged);
+//    connect(newPc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::signal_ParticleCounterActualDataHasChanged);
+    connect(newPc, &ParticleCounter::signal_ParticleCounterActualDataReceived, this, &ParticleCounterDatabase::slot_ParticleCounterActualDataReceived);
     connect(newPc, &ParticleCounter::signal_ParticleCounterArchiveDataReceived, this, &ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived);
     m_particlecounters.append(newPc);
 
@@ -117,8 +117,8 @@ QString ParticleCounterDatabase::deleteParticleCounter(int id)
     bool ok = m_particlecounters.removeOne(pc);
     if (ok)
     {
-        disconnect(pc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::signal_ParticleCounterActualDataHasChanged);
-        disconnect(pc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::slot_ParticleCounterActualDataHasChanged);
+        //disconnect(pc, &ParticleCounter::signal_ParticleCounterActualDataHasChanged, this, &ParticleCounterDatabase::signal_ParticleCounterActualDataHasChanged);
+        disconnect(pc, &ParticleCounter::signal_ParticleCounterActualDataReceived, this, &ParticleCounterDatabase::slot_ParticleCounterActualDataReceived);
         disconnect(pc, &ParticleCounter::signal_ParticleCounterArchiveDataReceived, this, &ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived);
         pc->deleteFromHdd();
         pc->deleteAllErrors();
@@ -271,30 +271,7 @@ void ParticleCounterDatabase::slot_receivedInputRegisterData(quint64 telegramID,
     pc->slot_receivedInputRegisterData(telegramID, adr, reg, data);
 }
 
-void ParticleCounterDatabase::slot_ParticleCounterActualDataHasChanged(int id)
-{
-    // Example of payload:
-    // 'particles,tag_id=2,tag_channel=1,tag_room=iso5-Raum id=2i,channel=1i,counts=15i 1678388136783721259'
-
-    QMap<QString,QString> responseData = this->getParticleCounterData(id, QStringList() << "actual");
-    responseData.remove("actualData");  // Remove special treatment marker
-
-    QString measurementName = m_settings->value("measurementName", QString()).toString();
-
-    QByteArray payload;
-    payload.append(measurementName.toUtf8() + ",");
-    payload.append("tag_id=" + QByteArray().setNum(id) + ",");
-    payload.append("tag_channel=" + responseData.value("channel").toUtf8());
-    payload.append("tag_room=" + responseData.value("room").toUtf8());
-    payload.append(" ");
-    payload.append("id=" + QByteArray().setNum(id) + "i,");
-    payload.append("channel=" + responseData.value("channel").toUtf8() + "i,");
-    payload.append("counts=" + responseData.value("counts").toUtf8() + "i ");
-    payload.append(responseData.value("timestamp").toUtf8());
-    m_influxDB->write(payload);
-}
-
-void ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived(int id, ParticleCounter::ArchiveDataset archiveData)
+void ParticleCounterDatabase::slot_ParticleCounterActualDataReceived(int id, ParticleCounter::ActualData actualData)
 {
     // Example of payload:
     // 'particles,tag_id=2,tag_channel=1,tag_room=iso5-Raum id=2i,channel=1i,counts=15i 1678388136783721259'
@@ -304,20 +281,48 @@ void ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived(int id, Pa
     // Separate data points in influx for each channel of the particle counter
     for (int ch=0; ch<8; ch++)
     {
-        if (archiveData.channelData[ch].status == ParticleCounter::OFF)
-            continue;
+        // particles,tag_id=50,tag_channel=7, id=50i,channel=7i,counts=7i
 
         QByteArray payload;
         payload.append(measurementName.toUtf8() + ",");
         payload.append("tag_id=" + QByteArray().setNum(id) + ",");
-        payload.append("tag_channel=" + QByteArray().setNum(archiveData.channelData[ch].channel) + ",");
+        payload.append("tag_channel=" + QByteArray().setNum(actualData.channelData[ch].channel));
         // tbd!!
-        //    payload.append("tag_room=" + responseData.value("room").toUtf8());
+        //    payload.append(",tag_room=" + responseData.value("room").toUtf8());
+        payload.append(" ");
+        payload.append("id=" + QByteArray().setNum(id) + "i,");
+        payload.append("channel=" + QByteArray().setNum(actualData.channelData[ch].channel) + "i,");
+        payload.append("counts=" + QByteArray().setNum(actualData.channelData[ch].count) + "i ");
+        qulonglong timestamp = actualData.timestamp.toMSecsSinceEpoch() * 1000000ull;    // Write timestamp to influx in nanoseconds since epoch
+        payload.append(QString().setNum(timestamp));
+        m_influxDB->write(payload);
+    }
+}
+
+void ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived(int id, ParticleCounter::ArchiveDataset archiveData)
+{    
+    // Example of payload:
+    // 'particles,tag_id=2,tag_channel=1,tag_room=iso5-Raum id=2i,channel=1i,counts=15i 1678388136783721259'
+
+    QString measurementName = m_settings->value("measurementName", QString()).toString();
+
+    // Separate data points in influx for each channel of the particle counter
+    for (int ch=0; ch<8; ch++)
+    {
+        // particles,tag_id=50,tag_channel=7, id=50i,channel=7i,counts=7i
+
+        QByteArray payload;
+        payload.append(measurementName.toUtf8() + ",");
+        payload.append("tag_id=" + QByteArray().setNum(id) + ",");
+        payload.append("tag_channel=" + QByteArray().setNum(archiveData.channelData[ch].channel));
+        // tbd!!
+        //    payload.append(",tag_room=" + responseData.value("room").toUtf8());
         payload.append(" ");
         payload.append("id=" + QByteArray().setNum(id) + "i,");
         payload.append("channel=" + QByteArray().setNum(archiveData.channelData[ch].channel) + "i,");
         payload.append("counts=" + QByteArray().setNum(archiveData.channelData[ch].count) + "i ");
-        payload.append(archiveData.timestamp.toMSecsSinceEpoch() * 1000000);    // Write timestamp to influx in nanoseconds since epoch
+        qulonglong timestamp = archiveData.timestamp.toMSecsSinceEpoch() * 1000000ull;    // Write timestamp to influx in nanoseconds since epoch
+        payload.append(QString().setNum(timestamp));
         m_influxDB->write(payload);
     }
 }

@@ -87,30 +87,18 @@ linux-aarch64*: QMAKE_TARGET.arch = aarch64
 unix {
     equals(QMAKE_TARGET.arch , x86_64): {
         message("Configured for x86_64")
-        message("Using libftdi1")
-        LIBS +=  -lftdi1
-        DEFINES += USE_LIBFTDI1
     }
 
     equals(QMAKE_TARGET.arch , x86): {
         message("Configured for x86")
-        message("Using libftdi1")
-        LIBS +=  -lftdi1
-        DEFINES += USE_LIBFTDI1
     }
 
     equals(QMAKE_TARGET.arch , armv6l): {
         message("Configured for armv6l")
-        message("Using libftdi")
-        LIBS +=  -lftdi
-        DEFINES += USE_LIBFTDI
     }
 
     equals(QMAKE_TARGET.arch , armv7l): {
         message("Configured for armv7l")
-        message("Using libftdi")
-        LIBS +=  -lftdi
-        DEFINES += USE_LIBFTDI
     }
 }
 
