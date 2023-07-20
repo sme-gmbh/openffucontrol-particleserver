@@ -50,7 +50,7 @@ ParticleCounter::ParticleCounter(QObject *parent, ParticleCounterModbusSystem *p
     m_actualData.timestamp = QDateTime();
 
     m_configData.outputDataFormat = CUMULATIVE;
-    m_configData.addupCount = 1;
+    m_configData.addupCount = 0;    // You may not set this to 1, otherwise counter will not configure to CUMULATIVE!
     m_configData.firstRinsingTimeInSeconds = 60;
     m_configData.subsequentRinsingTimeInSeconds = 30; // Must be >= 1 for internal loop check!
     m_configData.samplingTimeInSeconds = 59;
