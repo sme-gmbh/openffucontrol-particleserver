@@ -42,6 +42,7 @@ ParticleCounterDatabase::ParticleCounterDatabase(QObject *parent, ParticleCounte
     // Timer for cyclic check of the particle counter's realtime clock settings
     connect(&m_timer_checkRealTimeClocks, &QTimer::timeout, this, &ParticleCounterDatabase::slot_timer_checkRealTimeClocks_fired);
     m_timer_checkRealTimeClocks.setInterval(3600000 * 12);  // Every 12 hours RTC of particle counters are set to Server UTC Clock.
+    m_timer_checkRealTimeClocks.start();
 }
 
 void ParticleCounterDatabase::loadFromHdd()
@@ -320,13 +321,13 @@ void ParticleCounterDatabase::slot_ParticleCounterArchiveDataReceived(int id, Pa
         QByteArray payload;
         payload.append(measurementName.toUtf8() + ",");
         payload.append("tag_id=" + QByteArray().setNum(id) + ",");
-        payload.append("tag_serialnumber='" + deviceInfo.deviceIdString.toUtf8() + "',");
+        payload.append("tag_serialnumber=\"" + deviceInfo.deviceIdString.toUtf8() + "\",");
         payload.append("tag_channel=" + QByteArray().setNum(archiveData.channelData[ch].channel));
         // tbd!!
         //    payload.append(",tag_room=" + responseData.value("room").toUtf8());
         payload.append(" ");
         payload.append("id=" + QByteArray().setNum(id) + "i,");
-        payload.append("serialnumber='" + deviceInfo.deviceIdString.toUtf8() + "',");
+        payload.append("serialnumber=\"" + deviceInfo.deviceIdString.toUtf8() + "\",");
         payload.append("channel=" + QByteArray().setNum(archiveData.channelData[ch].channel) + "i,");
         payload.append("counts=" + QByteArray().setNum(archiveData.channelData[ch].count) + "i ");
         qulonglong timestamp = archiveData.timestamp.toMSecsSinceEpoch() * 1000000ull;    // Write timestamp to influx in nanoseconds since epoch

@@ -33,7 +33,7 @@ ParticleCounter::ParticleCounter(QObject *parent, ParticleCounterModbusSystem *p
     m_busID = -1;         // Invalid bus
     m_modbusAddress = -1; // Invalid address
 
-    m_samplingEnabled = false;
+    m_samplingEnabled = true;
 
     m_actualData.clockSettingLostCount = 0;
 
@@ -154,7 +154,7 @@ QString ParticleCounter::getData(QString key)
     // ***** Actual keys *****
     else if (key == "online")
     {
-        return QString().sprintf("%i", m_actualData.online);
+        return QString().setNum(m_actualData.online);
     }
     else if (key == "lostTelegrams")
     {
@@ -241,6 +241,15 @@ void ParticleCounter::setSamplingEnabled(bool on)
 
     if (!m_configData.valid)
         requestConfig();
+
+    if (on)
+    {
+        m_transactionIDs.append(bus->writeSingleRegister(m_modbusAddress, ParticleCounter::HOLDING_REG_0100_Command, ParticleCounter::COMMAND_0017_StartAcquisition));
+    }
+    else
+    {
+        m_transactionIDs.append(bus->writeSingleRegister(m_modbusAddress, ParticleCounter::HOLDING_REG_0100_Command, ParticleCounter::COMMAND_0016_StopAcquisition));
+    }
 
     m_samplingEnabled = on;
 }
@@ -335,16 +344,6 @@ void ParticleCounter::requestStatus()
 
     if (!m_configData.valid)
         requestConfig();
-
-    // Always set sampling enabled or disabled in every status request as stupid counters forget that sometimes and stop working
-    if (m_samplingEnabled)
-    {
-        m_transactionIDs.append(bus->writeSingleRegister(m_modbusAddress, ParticleCounter::HOLDING_REG_0100_Command, ParticleCounter::COMMAND_0017_StartAcquisition));
-    }
-    else
-    {
-        m_transactionIDs.append(bus->writeSingleRegister(m_modbusAddress, ParticleCounter::HOLDING_REG_0100_Command, ParticleCounter::COMMAND_0016_StopAcquisition));
-    }
 
     m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0089_StatusRegister, 1));
     m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0096_ErrorstateRegister, 1));
@@ -476,8 +475,8 @@ void ParticleCounter::save()
     wdata.append(QString().sprintf("outputDataFormat=%i ", m_configData.outputDataFormat));
     wdata.append(QString().sprintf("addupCount=%i ", m_configData.addupCount));
     wdata.append(QString().sprintf("firstRinsingTimeInSeconds=%i ", m_configData.firstRinsingTimeInSeconds));
-    wdata.append(QString().sprintf("subsequentRinsingTimeInSeconds=%i\n", m_configData.subsequentRinsingTimeInSeconds));
-    wdata.append(QString().sprintf("samplingTimeInSeconds=%i\n", m_configData.samplingTimeInSeconds));
+    wdata.append(QString().sprintf("subsequentRinsingTimeInSeconds=%i ", m_configData.subsequentRinsingTimeInSeconds));
+    wdata.append(QString().sprintf("samplingTimeInSeconds=%i ", m_configData.samplingTimeInSeconds));
     wdata.append(QString().sprintf("samplingEnabled=%i\n", m_samplingEnabled));
 
     file.write(wdata.toUtf8());
@@ -558,7 +557,7 @@ void ParticleCounter::load(QString filename)
 
         if (key == "samplingEnabled")
         {
-            m_samplingEnabled = value.toInt();
+//            m_samplingEnabled = value.toInt();
         }
     }
 
@@ -828,21 +827,29 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             m_deviceInfo.modbusRegistersetVersion = QString().sprintf("%i.%i", rawdata / 100, rawdata % 100);
             break;
         case ParticleCounter::INPUT_REG_0089_StatusRegister:
-            m_statusRegister.deviceActive = rawdata & (1 << 0);
-            m_statusRegister.currentlySampling = rawdata & (1 << 1);
-            m_statusRegister.currentlyRinsing = rawdata & (1 << 2);
-            m_statusRegister.dataReady = rawdata & (1 << 3);
+            m_statusRegister.deviceActive = (bool)((rawdata & (1 << 0)) >> 0);
+            m_statusRegister.currentlySampling = (bool)((rawdata & (1 << 1)) >> 1);
+            m_statusRegister.currentlyRinsing = (bool)((rawdata & (1 << 2)) >> 2);
+            m_statusRegister.dataReady = (bool)((rawdata & (1 << 3)) >> 3);
+
+            if (m_samplingEnabled != m_statusRegister.deviceActive)
+            {
+                this->setClock();
+                this->setConfigData(m_configData);
+                this->requestDeviceInfo();
+                this->setSamplingEnabled(m_samplingEnabled);
+            }
             break;
         case ParticleCounter::INPUT_REG_0096_ErrorstateRegister:
-            m_errorstateRegister.temperatureError = rawdata & (1 << 0);
-            m_errorstateRegister.sdCardError = rawdata & (1 << 1);
-            m_errorstateRegister.counterSettings = rawdata & (1 << 2);
-            m_errorstateRegister.acquisitionSettings = rawdata & (1 << 3);
-            m_errorstateRegister.remoteSettings = rawdata & (1 << 4);
-            m_errorstateRegister.filterSettings = rawdata & (1 << 5);
-            m_errorstateRegister.detectorLoop = rawdata & (1 << 6);
-            m_errorstateRegister.laserError = rawdata & (1 << 7);
-            m_errorstateRegister.flowError = rawdata & (1 << 9);
+            m_errorstateRegister.temperatureError = (bool)((rawdata & (1 << 0)) >> 0);
+            m_errorstateRegister.sdCardError = (bool)((rawdata & (1 << 1)) >> 1);
+            m_errorstateRegister.counterSettings = (bool)((rawdata & (1 << 2)) >> 2);
+            m_errorstateRegister.acquisitionSettings = (bool)((rawdata & (1 << 3)) >> 3);
+            m_errorstateRegister.remoteSettings = (bool)((rawdata & (1 << 4)) >> 4);
+            m_errorstateRegister.filterSettings = (bool)((rawdata & (1 << 5)) >> 5);
+            m_errorstateRegister.detectorLoop = (bool)((rawdata & (1 << 6)) >> 6);
+            m_errorstateRegister.laserError = (bool)((rawdata & (1 << 7)) >> 7);
+            m_errorstateRegister.flowError = (bool)((rawdata & (1 << 9)) >> 9);
 
             if (rawdata == 0)
             {
@@ -890,7 +897,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             m_actualData.channelData[0].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0264_0265_LivecountsChannel1LH + 1:
-            m_actualData.channelData[0].count += rawdata << 16;
+            m_actualData.channelData[0].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0266_LivecountsChannel2Status:
             m_actualData.channelData[1].channel=2;
@@ -900,7 +907,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             m_actualData.channelData[1].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0267_0268_LivecountsChannel2LH + 1:
-            m_actualData.channelData[1].count += rawdata << 16;
+            m_actualData.channelData[1].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0269_LivecountsChannel3Status:
             m_actualData.channelData[2].channel=3;
@@ -910,7 +917,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             m_actualData.channelData[2].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0270_0271_LivecountsChannel3LH + 1:
-            m_actualData.channelData[2].count += rawdata << 16;
+            m_actualData.channelData[2].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0272_LivecountsChannel4Status:
             m_actualData.channelData[3].channel=4;
@@ -920,7 +927,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             m_actualData.channelData[3].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0273_0274_LivecountsChannel4LH + 1:
-            m_actualData.channelData[3].count += rawdata << 16;
+            m_actualData.channelData[3].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0275_LivecountsChannel5Status:
             m_actualData.channelData[4].channel=5;
@@ -930,7 +937,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             m_actualData.channelData[4].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0276_0277_LivecountsChannel5LH + 1:
-            m_actualData.channelData[4].count += rawdata << 16;
+            m_actualData.channelData[4].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0278_LivecountsChannel6Status:
             m_actualData.channelData[5].channel=6;
@@ -940,7 +947,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             m_actualData.channelData[5].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0279_0280_LivecountsChannel6LH + 1:
-            m_actualData.channelData[5].count += rawdata << 16;
+            m_actualData.channelData[5].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0281_LivecountsChannel7Status:
             m_actualData.channelData[6].channel=7;
@@ -950,7 +957,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             m_actualData.channelData[6].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0282_0283_LivecountsChannel7LH + 1:
-            m_actualData.channelData[6].count += rawdata << 16;
+            m_actualData.channelData[6].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0284_LivecountsChannel8Status:
             m_actualData.channelData[7].channel=8;
@@ -960,7 +967,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             m_actualData.channelData[7].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0285_0286_LivecountsChannel8LH + 1:
-            m_actualData.channelData[7].count += rawdata << 16;
+            m_actualData.channelData[7].count += (quint32)rawdata << 16;
             // INPUT_REG_0285_0286_LivecountsChannel8LH + 1 is the last data we get from automatic query, so signal new data now
             emit signal_ParticleCounterActualDataReceived(m_id, m_actualData, m_deviceInfo);
             break;
@@ -1002,7 +1009,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             archiveDataset.channelData[0].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0522_0523_ArchiveDataSetChannel1LH + 1:
-            archiveDataset.channelData[0].count += rawdata << 16;
+            archiveDataset.channelData[0].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0524_ArchiveDataSetChannel2Status:
             archiveDataset.channelData[1].channel = 2;
@@ -1012,7 +1019,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             archiveDataset.channelData[1].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0525_0526_ArchiveDataSetChannel2LH + 1:
-            archiveDataset.channelData[1].count += rawdata << 16;
+            archiveDataset.channelData[1].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0527_ArchiveDataSetChannel3Status:
             archiveDataset.channelData[2].channel = 3;
@@ -1022,7 +1029,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             archiveDataset.channelData[2].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0528_0529_ArchiveDataSetChannel3LH + 1:
-            archiveDataset.channelData[2].count += rawdata << 16;
+            archiveDataset.channelData[2].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0530_ArchiveDataSetChannel4Status:
             archiveDataset.channelData[3].channel = 4;
@@ -1032,7 +1039,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             archiveDataset.channelData[3].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0531_0532_ArchiveDataSetChannel4LH + 1:
-            archiveDataset.channelData[3].count += rawdata << 16;
+            archiveDataset.channelData[3].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0533_ArchiveDataSetChannel5Status:
             archiveDataset.channelData[4].channel = 5;
@@ -1042,7 +1049,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             archiveDataset.channelData[4].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0534_0535_ArchiveDataSetChannel5LH + 1:
-            archiveDataset.channelData[4].count += rawdata << 16;
+            archiveDataset.channelData[4].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0536_ArchiveDataSetChannel6Status:
             archiveDataset.channelData[5].channel = 6;
@@ -1052,7 +1059,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             archiveDataset.channelData[5].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0537_0538_ArchiveDataSetChannel6LH + 1:
-            archiveDataset.channelData[5].count += rawdata << 16;
+            archiveDataset.channelData[5].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0539_ArchiveDataSetChannel7Status:
             archiveDataset.channelData[6].channel = 7;
@@ -1062,7 +1069,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             archiveDataset.channelData[6].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0540_0541_ArchiveDataSetChannel7LH + 1:
-            archiveDataset.channelData[6].count += rawdata << 16;
+            archiveDataset.channelData[6].count += (quint32)rawdata << 16;
             break;
         case ParticleCounter::INPUT_REG_0542_ArchiveDataSetChannel8Status:
             archiveDataset.channelData[7].channel = 8;
@@ -1072,7 +1079,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             archiveDataset.channelData[7].count = rawdata;
             break;
         case ParticleCounter::INPUT_REG_0543_0544_ArchiveDataSetChannel8LH + 1:
-            archiveDataset.channelData[7].count += rawdata << 16;
+            archiveDataset.channelData[7].count += (quint32)rawdata << 16;
             if (archiveDataset.channelData[0].count != 0xffffffff)
                 emit signal_ParticleCounterArchiveDataReceived(m_id, archiveDataset, m_deviceInfo);
             break;
