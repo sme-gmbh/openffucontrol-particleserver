@@ -166,7 +166,14 @@ void RemoteClientHandler::slot_read_ready()
             {
                 QString line;
 
-                line.sprintf("Particle Counter id=%i busID=%i\r\n", pc->getId(), pc->getBusID());
+                line.sprintf("Particle Counter id=%i busID=%i modbusAddress=%i serial=%s online=%i lastSeen=%s status=%s\r\n", 
+                    pc->getId(), 
+                    pc->getBusID(), 
+                    pc->getModbusAddress(), 
+                    pc->getData("deviceID").toUtf8().data(),
+                    pc->getActualData().online, 
+                    pc->getData("lastSeen").toUtf8().data(),
+                    pc->getActualData().statusString.toUtf8().data());
 
                 socket->write(line.toUtf8());
             }

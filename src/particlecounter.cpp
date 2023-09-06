@@ -342,14 +342,21 @@ void ParticleCounter::requestStatus()
         return;
     }
 
-    if (!m_configData.valid)
-        requestConfig();
-
-    m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0089_StatusRegister, 1));
-    m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0096_ErrorstateRegister, 1));
-    m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0097_0112_PhysicalUnitString, 16));
-//    m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0257_LivecountsTimestampSeconds,
-//                                                      ParticleCounter::INPUT_REG_0285_0286_LivecountsChannel8LH + 1 - ParticleCounter::INPUT_REG_0257_LivecountsTimestampSeconds + 1));
+    if(m_actualData.online == false)
+    {
+        m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0089_StatusRegister, 1));
+    }
+    else
+    {
+        if (!m_configData.valid)
+            requestConfig();
+    
+        m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0089_StatusRegister, 1));
+        m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0096_ErrorstateRegister, 1));
+        m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0097_0112_PhysicalUnitString, 16));
+    //    m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0257_LivecountsTimestampSeconds,
+    //                                                      ParticleCounter::INPUT_REG_0285_0286_LivecountsChannel8LH + 1 - ParticleCounter::INPUT_REG_0257_LivecountsTimestampSeconds + 1));
+    }
 }
 
 void ParticleCounter::requestArchiveDataset()
@@ -367,11 +374,18 @@ void ParticleCounter::requestArchiveDataset()
         return;
     }
 
-    if (!m_configData.valid)
-        requestConfig();
+    if(m_actualData.online == false)
+    {
+//        m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0089_StatusRegister, 1));
+    }
+    else
+    {
+        if (!m_configData.valid)
+            requestConfig();
 
-    m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0513_ArchiveDataSetTimestampSeconds,
-                                                    ParticleCounter::INPUT_REG_0543_0544_ArchiveDataSetChannel8LH + 1 - ParticleCounter::INPUT_REG_0513_ArchiveDataSetTimestampSeconds + 1));
+        m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0513_ArchiveDataSetTimestampSeconds,
+                                                        ParticleCounter::INPUT_REG_0543_0544_ArchiveDataSetChannel8LH + 1 - ParticleCounter::INPUT_REG_0513_ArchiveDataSetTimestampSeconds + 1));
+    }
 }
 
 void ParticleCounter::requestNextArchive()
@@ -389,10 +403,17 @@ void ParticleCounter::requestNextArchive()
         return;
     }
 
-    if (!m_configData.valid)
-        requestConfig();
+    if(m_actualData.online == false)
+    {
+//        m_transactionIDs.append(bus->readInputRegisters(m_modbusAddress, ParticleCounter::INPUT_REG_0089_StatusRegister, 1));
+    }
+    else
+    {
+        if (!m_configData.valid)
+            requestConfig();
 
-    m_transactionIDs.append(bus->writeSingleRegister(m_modbusAddress, ParticleCounter::HOLDING_REG_0100_Command, ParticleCounter::COMMAND_0099_LoadNextArchiveDataSet));
+        m_transactionIDs.append(bus->writeSingleRegister(m_modbusAddress, ParticleCounter::HOLDING_REG_0100_Command, ParticleCounter::COMMAND_0099_LoadNextArchiveDataSet));
+    }
 }
 
 void ParticleCounter::requestConfig()
@@ -557,7 +578,7 @@ void ParticleCounter::load(QString filename)
 
         if (key == "samplingEnabled")
         {
-//            m_samplingEnabled = value.toInt();
+            m_samplingEnabled = value.toInt();
         }
     }
 
@@ -838,6 +859,7 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
                 this->setConfigData(m_configData);
                 this->requestDeviceInfo();
                 this->setSamplingEnabled(m_samplingEnabled);
+                m_loghandler->slot_newEntry(LogEntry::Warning, "Particle Counter id=" + QString().setNum(m_id), "Stopped working. Restarted.");
             }
             break;
         case ParticleCounter::INPUT_REG_0096_ErrorstateRegister:
@@ -859,6 +881,25 @@ void ParticleCounter::slot_receivedInputRegisterData(quint64 telegramID, quint16
             else
             {
                 m_actualData.statusString = "problem";
+                if(m_errorstateRegister.temperatureError)
+                    m_actualData.statusString += ":temperature";
+                if(m_errorstateRegister.sdCardError)
+                    m_actualData.statusString += ":sdCard";
+                if(m_errorstateRegister.counterSettings)
+                    m_actualData.statusString += ":counterSetting";
+                if(m_errorstateRegister.acquisitionSettings)
+                    m_actualData.statusString += ":acquisitionSettings";
+                if(m_errorstateRegister.remoteSettings)
+                    m_actualData.statusString += ":remoteSettings";
+                if(m_errorstateRegister.filterSettings)
+                    m_actualData.statusString += ":filterSettings";
+                if(m_errorstateRegister.detectorLoop)
+                    m_actualData.statusString += ":detectorLoop";
+                if(m_errorstateRegister.laserError)
+                    m_actualData.statusString += ":laser";
+                if(m_errorstateRegister.flowError)
+                    m_actualData.statusString += ":airflow";
+                   
                 m_loghandler->slot_newEntry(LogEntry::Error, "Particle Counter id=" + QString().setNum(m_id), "Status error present.");
             }
 
