@@ -210,3 +210,20 @@ The followiong parameters are stored in these files by default:
 
 Refer to the particle counters user manual and the source code *particlecounter.cpp* if changes to these paramaters are needed. You can set these parameters specifically for each particlecounter.
 
+## System configuration backup
+In case you want to create a full configuration backup of openffucontrol-particleserver, these directories need to be considered:  
+- /var/openffucontrol/particlecounters/
+- /etc/openffucontrol/particleserver/
+
+# Time series database
+The openffucontrol-particleserver needs influxDB as a time series database.
+Install influxDB on your server or somewhere in your network in order to store measurement data.
+Please refer to the [InfluxDB Documentation](https://docs.influxdata.com/influxdb/v2/get-started/setup/) for installation and maintenance. No special configuration is needed beyond creation of a database and setting up user credentials.
+
+You might want to run influxDB on a redundant cluster or at least on a raid volume with redundancy. For backup methods please refer to the [influxDB Backup Section](https://docs.influxdata.com/influxdb/v2/admin/backup-restore/)
+
+# Visual representation
+You might want to use some sort of visual processing of the recorded measurements. We can recommend using grafana for that purpose as it has an interface for influxDB already included.  
+Of course any other processing of the data is also possible as long as it is able to read data from influxDB.  
+Please refer to the [influxDB query documentation](https://docs.influxdata.com/influxdb/v2/query-data/)
+
