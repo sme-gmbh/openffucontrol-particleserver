@@ -208,7 +208,7 @@ The followiong parameters are stored in these files by default:
 - samplingTimeInSeconds
 - samplingEnabled
 
-Refer to the particle counters user manual and the source code *particlecounter.cpp* if changes to these paramaters are needed. You can set these parameters specifically for each particlecounter.
+Refer to the particle counters user manual and the source code [particlecounter.cpp](https://github.com/sme-gmbh/openffucontrol-particleserver/blob/master/src/particlecounter.cpp) if changes to these paramaters are needed. You can set these parameters specifically for each particlecounter.
 
 ## System configuration backup
 In case you want to create a full configuration backup of openffucontrol-particleserver, these directories need to be considered:  
@@ -223,7 +223,7 @@ Please refer to the [InfluxDB Documentation](https://docs.influxdata.com/influxd
 You might want to run influxDB on a redundant cluster or at least on a raid volume with redundancy. For backup methods please refer to the [influxDB Backup Section](https://docs.influxdata.com/influxdb/v2/admin/backup-restore/)
 
 # Visual representation
-You might want to use some sort of visual processing of the recorded measurements. We can recommend using grafana for that purpose as it has an interface for influxDB already included.  
+You might want to use some sort of visual processing of the recorded measurements. We can recommend using the open source version of [Grafana](https://grafana.com/oss/grafana/) for that purpose as it has an interface for influxDB already included.  
 Of course any other processing of the data is also possible as long as it is able to read data from influxDB.  
-Please refer to the [influxDB query documentation](https://docs.influxdata.com/influxdb/v2/query-data/)
+Please refer to the [influxDB Query Documentation](https://docs.influxdata.com/influxdb/v2/query-data/)
 
